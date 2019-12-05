@@ -1,0 +1,97 @@
+// Block definition (there may be more than one block per file)
+FUNCTION_BLOCK tipper
+
+// Define input variables
+VAR_INPUT
+    distancetogoal : REAL;
+    weather : REAL;
+    batterylife : REAL;
+    alreadyhave : REAL;
+END_VAR
+
+// Define output variable
+VAR_OUTPUT
+    go : REAL;
+    speed : REAL;
+END_VAR
+
+FUZZIFY distancetogoal
+    TERM near := (0, 1) (4, 0) ; 
+    TERM notfar := (1, 0) (4,1) (6,1) (9,0);
+    TERM far := (6, 0) (9, 1);
+END_FUZZIFY
+
+FUZZIFY weather
+    TERM bad := (0, 1) (1, 1) (3,0) ;
+    TERM good := (7,0) (9,1);
+END_FUZZIFY
+
+FUZZIFY batterylife
+    TERM low := (0, 1) (2, 1) (4,0) ;
+    TERM normal := (3, 0) (5, 1) (6,1) (8,0) ;
+    TERM good := (7,0) (9,1);
+END_FUZZIFY
+
+FUZZIFY alreadyhave
+    TERM alittle := (0, 1) (2, 1) (4,0) ;
+    TERM some := (4, 0) (5, 1) (6,1) (7,0) ;
+    TERM alot := (7,0) (9,1) ;
+END_FUZZIFY
+
+DEFUZZIFY go
+    TERM get := (0,0) (5,1) (10,0);
+    TERM stayhome := (10,0) (15,1) (20,0);
+    // Use 'Center Of Gravity' defuzzification method
+    METHOD : COG;
+    // Default value is 0 (if no rule activates defuzzifier)
+    DEFAULT := 0;
+END_DEFUZZIFY
+
+DEFUZZIFY speed
+    TERM slow := (0,1) (2, 1) (5,1) (10,0);
+    TERM fast := (7,0) (10,1) (15,1) (20,1);
+    // Use 'Center Of Gravity' defuzzification method
+    METHOD : COG;
+    // Default value is 0 (if no rule activates defuzzifier)
+    DEFAULT := 0;
+END_DEFUZZIFY
+
+RULEBLOCK No1
+    // Use 'min' for 'and' (also implicit use 'max'
+    // for 'or' to fulfill DeMorgan's Law)
+    AND : MIN;
+    // Use 'min' activation method
+    ACT : MIN;
+    // Use 'max' accumulation method
+    ACCU : MAX;
+
+    RULE 1 : IF batterylife IS low OR weather IS bad OR alreadyhave IS alot
+                THEN go IS stayhome;
+
+    RULE 2 : IF (distancetogoal IS near OR distancetogoal IS notfar) AND (weather IS good) AND (batterylife IS good OR batterylife IS normal)
+                THEN go IS get; 
+
+    RULE 3 : IF (alreadyhave IS alittle) AND (batterylife IS normal OR batterylife IS good) 
+                THEN go IS get;
+END_RULEBLOCK
+
+RULEBLOCK No2
+    // Use 'min' for 'and' (also implicit use 'max'
+    // for 'or' to fulfill DeMorgan's Law)
+    AND : MIN;
+    // Use 'min' activation method
+    ACT : MIN;
+    // Use 'max' accumulation method
+    ACCU : MAX;
+
+    RULE 1 : IF go IS stayhome
+                THEN speed IS slow;
+
+    RULE 2 : IF batterylife IS good
+                THEN speed IS fast; 
+
+    RULE 3 : IF (weather IS good) AND (batterylife IS normal OR batterylife IS good)
+                THEN speed IS fast;
+END_RULEBLOCK
+
+END_FUNCTION_BLOCK 
